@@ -26,8 +26,8 @@ class Emulator:
         logging.basicConfig(level=logging.DEBUG)
 
         # Set emulator address and socket --- TODO: uncomment testing lines
-        # self.emulator_addr = ['127.0.0.1', int(args.port)]  # TODO - comment
-        self.emulator_addr = [socket.gethostbyname(socket.gethostname()), args.port]      # TODO - uncomment
+        self.emulator_addr = ['127.0.0.1', int(args.port)]  # TODO - comment
+        # self.emulator_addr = [socket.gethostbyname(socket.gethostname()), args.port]      # TODO - uncomment
         self.sock.bind((self.emulator_addr[0], int(self.emulator_addr[1])))
         self.sock.setblocking(False)
 
