@@ -28,13 +28,15 @@ class Trace:
         # Set up logging
         logging.basicConfig(level=logging.DEBUG)
 
-        # Set routetrace address and socket --- TODO: uncomment testing lines
-        self.routetrace_addr = ['127.0.0.1', int(args.routetrace_port)]                             # TODO - comment
-        # self.routetrace_addr = [socket.gethostbyname(socket.gethostname()), int(args.routetrace_port)]   # TODO - uncomment
-        self.src_addr = ['127.0.0.1', int(args.src_port)]                             # TODO - comment
-        # self.src_addr = [socket.gethostbyname(args.src_hostname), int(args.src_port)]   # TODO - uncomment
-        self.dest_addr = ['127.0.0.1', int(args.dest_port)]                             # TODO - comment
-        # self.dest_addr = [socket.gethostbyname(args.dest_hostname), int(args.dest_port)]   # TODO - uncomment
+        # Set routetrace address and socket
+        self.routetrace_addr = [socket.gethostbyname(socket.gethostname()), int(args.routetrace_port)]
+        self.src_addr = [socket.gethostbyname(args.src_hostname), int(args.src_port)]
+        self.dest_addr = [socket.gethostbyname(args.dest_hostname), int(args.dest_port)]
+
+        # Code used when testing routetrace address and socket
+        # self.routetrace_addr = ['127.0.0.1', int(args.routetrace_port)]
+        # self.src_addr = ['127.0.0.1', int(args.src_port)]
+        # self.dest_addr = ['127.0.0.1', int(args.dest_port)]
 
         self.debug = args.debug
         self.sock.bind((self.routetrace_addr[0], int(self.routetrace_addr[1])))
