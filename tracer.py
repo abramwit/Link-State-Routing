@@ -5,7 +5,7 @@ import logging
 import struct
 import datetime
 
-from emulator import Emulator
+from emulator import EmulatorInProgress
 
 # Recieve Packet Enums
 NR_BYTES_ACCEPTED = 1024
@@ -39,14 +39,14 @@ PORT = 1
 
 DEBUG_MODE = 1
 
-class Trace(Emulator):
+class Trace(EmulatorInProgress):
     routetrace_addr = [-1, -1]  # route trace  addr in the form [IP addr, port #]
     src_addr = [-1, -1]
     dest_addr = [-1, -1]
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     debug = 0
 
-    def parse(self):
+    def __init__(self):
         # Parse command line args
         parser = argparse.ArgumentParser()
         # TODO: SET PORT AND IP USING EMULATOR CLASS THAT WE ARE INHERITING AND MAKE COMMON PACKET ASSEMBLE / DEASSEMBLE IN EMULATOR
@@ -162,7 +162,5 @@ class Trace(Emulator):
 
 
 trace = Trace()
-
-trace.parse()
 
 trace.routetrace()
