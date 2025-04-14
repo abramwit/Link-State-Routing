@@ -5,13 +5,106 @@ import logging
 import struct
 import datetime
 
+from emulator_priority_queue import EmulatorPriorityQueue
+from emulator import EmulatorInProgress
+
+class ForwardingTableEntry():
+    
+    def __init__(self, emulator, next_hop, in_spf):
+        self.emulator = emulator
+        self.next_hop = next_hop
+        self.in_spf = in_spf
+
+    def get_entry(self):
+        return self.emulator, self.next_hop, self.in_spf
+    
+    def update_next_hop(self, new_next_hop):
+        self.next_hop = new_next_hop
+
+    def set_in_spf(self, in_spf):
+        self.in_spf = in_spf
+
+    def get_in_spf(self):
+        return self.in_spf
+
+
+class ForwardingTable(ForwardingTableEntry):
+
+    def __init__(self):
+        # EMULATOR   NEXT-HOP   IN-SPF
+        self.forwarding_table = []
+
+
+    def __get_emulator_key(self, emulator):
+        key = str(emulator.get_ip()) + ',' + str(emulator.get_port())
+        return key
+    
+    
+    def __get_forwarding_table(self):
+        return self.forwarding_table
+    
+
+    def __get_entry(self, emulator):
+        key = self.__get_emulator_key(emulator)
+
+        for entry in self.__get_forwarding_table():
+            if list(entry.keys())[0] == key:
+                return entry
+        return False
+
+    
+    def add_entry(self, emulator, next_hop):
+        key = self.__get_emulator_key(emulator)
+        entry = ForwardingTableEntry(emulator, next_hop, False)
+        self.forwarding_table.append({key:entry})
+
+
+    def update_next_hop(self, emulator, new_next_hop):
+        entry = self.__get_entry(emulator)
+        entry.update_next_hop(new_next_hop)
+
+
+    def get_next_hop(self, starting, predecessor):
+        # Insert predecessor to destination node and returns next hop from starting emulator
+        next_hop = predecessor
+
+        # While next-hop is not in starting nodes neighbors
+        while next_hop not in starting.get_neighbors():
+            # Find forwarding table entry who's next-node equals the current next-node (starting with predecessor)
+            for entry in self.__get_forwarding_table():
+                start_node, _, next_node = entry.get_entry()
+                if next_hop == next_node:
+                    # Set the next-node to the starting node and repeat
+                    next_hop = start_node
+                    break
+        return next_hop
+
+
+    
+    def is_emulator_in_forwarding_table(self, emulator):
+        in_table = self.get_entry
+        if in_table:
+            return True
+        return False
+
+
+    def is_emulator_in_sp_tree(self, emulator):
+        # Status of whether emulator is in the shortest path tree
+        entry = self.__get_entry(emulator)
+        return entry.get_in_spf()
+
+
+    def add_emulator_to_sp_tree(self, emulator):
+        # Add emulator to the shortest path tree
+        entry = self.__get_entry(emulator)
+        entry.set_in_spf(True)
+
 
 class LinkStateProtocol:
 
     def __init__(self, emulator):
         self.emulator_obj = emulator
         self.forwarding_tbl = []
-        self.neighbor_nodes = []
         self.cur_LSP = []  # Up-to-date Link State Packet
 
 
@@ -49,7 +142,7 @@ class LinkStateProtocol:
                     #               str(header[4][1]))
 
                     # Check if sender of hello message in neighbor list
-                    for node in self.neighbor_nodes:
+                    for node in self.emulator_obj.get_neighbors():
 
                         if header[4][0].__eq__(node['ip']) and header[4][1] == node['port']:
                             # Hello message received from previously available neighbor node
@@ -60,11 +153,11 @@ class LinkStateProtocol:
                     if unavailable:
                         # logging.debug('Previously unavailable node with [ip:port] has become available -- ' +
                         #               header[4][0] + ' : ' + str(header[4][1]))
-                        self.neighbor_nodes.append({'ip': header[4][0], 'port': header[4][1],
-                                                    'last_hello': datetime.datetime.now()})
+                        self.emulator_obj.append_neighbor({'ip': header[4][0], 'port': header[4][1],
+                                                           'last_hello': datetime.datetime.now()})
                         topography_change = True
 
-                        for node in self.neighbor_nodes:
+                        for node in self.emulator_obj.get_neighbors():
                             # logging.debug("Sending LSP packet to [ip:port] -- " +
                             #               node['ip'] + " : " + str(node['port']))
                             self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1),
@@ -90,7 +183,7 @@ class LinkStateProtocol:
 
             # Send hello packet to all neighbors if send_timeout has passed
             if datetime.datetime.now() - send_hello > send_timeout:
-                for node in self.neighbor_nodes:
+                for node in self.emulator_obj.get_neighbors():
                     # logging.debug("Sending hello packet to [ip:port] -- " + node['ip'] + " : " + str(node['port']))
                     self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('H', 1, [node['ip'], node['port']], -1), (node['ip'],
                                                                                                    node['port']))
@@ -98,7 +191,7 @@ class LinkStateProtocol:
                 send_hello = datetime.datetime.now()
 
             # If hello packet not received in time, remove neighbor and generate new LSP
-            for node in self.neighbor_nodes:
+            for node in self.emulator_obj.get_neighbors():
                 if node['last_hello'] == -1:
                     # Give neighbors leeway on first hello message (set to -1), then store datetime regardless of recv
                     node['last_hello'] = datetime.datetime.now()
@@ -112,7 +205,7 @@ class LinkStateProtocol:
             for drop_node in neighbor_timeout:
                 # logging.debug('Removing [ip:port] from neighbor nodes list -- ' + drop_node['ip'] + " : " +
                 #               str(drop_node['port']))
-                self.neighbor_nodes.remove(drop_node)
+                self.emulator_obj.remove_neighbor(drop_node)
 
                 # When dropping neighbor node also remove LSP entry
                 for lsp in self.cur_LSP:
@@ -122,7 +215,7 @@ class LinkStateProtocol:
                         self.cur_LSP.remove(lsp)
 
             if len(neighbor_timeout) >= 1:
-                for node in self.neighbor_nodes:
+                for node in self.emulator_obj.get_neighbors():
                     # logging.debug("Sending LSP packet to [ip:port] -- " + node['ip'] + " : " + str(node['port']))
                     self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1),
                                      (node['ip'], node['port']))
@@ -155,7 +248,7 @@ class LinkStateProtocol:
                     self.cur_LSP.append(new_lsp)
 
                     # Forward Up-to-date LSP to all neighbors except the node LSP was received from
-                    for neighbor in self.neighbor_nodes:
+                    for neighbor in self.emulator_obj.get_neighbors():
                         if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
                             # logging.debug("Forwarding updated LSP to node at " + neighbor['ip'] + " : " +
                             #               str(neighbor['port']))
@@ -171,7 +264,7 @@ class LinkStateProtocol:
             self.cur_LSP.append(new_lsp)
 
             # Forward new LSP to all neighbors except the node LSP was received from
-            for neighbor in self.neighbor_nodes:
+            for neighbor in self.emulator_obj.get_neighbors():
                 if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
                     # logging.debug("Forwarding new LSP to node at " + neighbor['ip'] + " : " +
                     #               str(neighbor['port']))
@@ -184,8 +277,58 @@ class LinkStateProtocol:
         tentative = []
         in_algo = False
 
+        ### TEST
+
+        # Create Forwarding Table w/ Destination, In SPF?, Cost and  Next Hop
+        forwarding_table = ForwardingTable()
+
+        # Create an Empty Priority Queue
+        priority_queue = EmulatorPriorityQueue()
+
+        # Set the cost of the starting emulator to 0 in the Forwarding Table
+        forwarding_table.add_entry(self.emulator_obj, self.emulator_obj)
+
+        # Insert the starting emulator into the priority queue and set it's cost to 0
+        priority_queue.insert(self.emulator_obj)
+
+        # While the priority queue is not empty
+        while priority_queue:
+
+            # Get the emulator from the priority queue with the minimum cost
+            emulator = priority_queue.get_min()
+
+            # If the emulator is not in the forwarding tables SPF tree
+            if not forwarding_table.is_emulator_in_sp_tree(emulator):
+
+                # Insert the node into the forwarding table and set it's status in the SPF tree to True
+                forwarding_table.add_emulator_to_sp_tree(emulator)
+
+                # For all of the added emulator's neighbors
+                for neighbor in emulator.get_neighbors():
+
+                    # Calculate the cost to the neighbor [cost = weight(u,v) + table[v].cost]
+                    new_cost = 1 + emulator.get_cost()
+
+                    # If the forwarding table does not have a cost for the neighbor or the calculated cost is lower
+                    if not forwarding_table.is_emulator_in_forwarding_table(neighbor) or (neighbor.get_cost > new_cost):
+
+                        # Insert the neighbor into the forwarding table (set it's cost and 'next hop')
+                        neighbor.set_cost(new_cost)
+                        next_hop = forwarding_table(emulator)
+
+                        if not forwarding_table.is_emulator_in_forwarding_table(neighbor):
+                            forwarding_table.add_entry(neighbor, next_hop)
+
+                        else:
+                            forwarding_table.update_next_hop(neighbor, next_hop)
+
+                        # Insert the neighbor and it's cost into the priority queue
+                        priority_queue.insert(neighbor)
+
+        ### TEST
+
         # Consider all neighbor nodes of this emulator
-        for neighbor in self.neighbor_nodes:
+        for neighbor in self.emulator_obj.get_neighbors():
             tentative.append({"dest": [neighbor["ip"], neighbor["port"]], "cost": 1, "next_hop": [neighbor["ip"], neighbor["port"]]})
 
         # While all nodes have not been attached by Dijkstra consider next node

@@ -67,7 +67,7 @@ class EmulatorInProgress:
 
         self.ip = socket.gethostbyname(socket.gethostname())
         self.port = int(args.port)
-        self.id, self.neighbors = self.readtopology(args.filename)
+        self.id, self.neighbors = self.__readtopology(args.filename)
         self.cost = 0
         self.seq_no = 0
         self.tracer = tracer
@@ -76,16 +76,17 @@ class EmulatorInProgress:
         # self.emulator_addr = ['127.0.0.1', int(args.port)]
 
         # Set emulator address and socket
+        # TODO: Do this as part of separate method so I can create Emulator objects from link_state_routing.py
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.get_ip(), self.get_port()))
         self.sock.setblocking(False)
 
     
-    def readtopology(self, filename):
-        emulator_id = -1
-        neighbors = []
-
+    def __readtopology(self, filename):
         try:
+            emulator_id = -1
+            neighbors = []
+            
             file = open(filename, 'r').read().splitlines()
 
             # Read through lines of topology.txt
@@ -111,11 +112,19 @@ class EmulatorInProgress:
         return self.ip
     
 
+    def set_ip(self, ip):
+        self.ip = ip
+    
+
     def get_port(self):
         return self.port
     
 
-    def get_id(self):
+    def set_port(self, port):
+        self.port = port
+    
+
+    def __get_id(self):
         return self.id
 
 
@@ -125,6 +134,14 @@ class EmulatorInProgress:
 
     def set_neighbors(self, neighbors):
         self.neighbors = neighbors
+
+    
+    def append_neighbor(self, neighbor):
+        self.neighbors.append(neighbor)
+    
+
+    def remove_neighbor(self, neighbor):
+        self.neighbors.remove(neighbor)
 
 
     def get_cost(self):
@@ -145,6 +162,7 @@ class EmulatorInProgress:
     
     def get_sock(self):
         return self.sock
+    
 
 
     def assemblepacket(self, p_type, ttl, dest, ack_seq_no, trace_addr=[]):
@@ -178,7 +196,7 @@ class EmulatorInProgress:
             # Construct LSP, increment sequence number and append list of neighbors
             lsp_pkt = struct.pack("!cIIIIIII", 
                                   LSP_PACKET_TYPE.encode(), 
-                                  self.get_id(), 
+                                  self.__get_id(), 
                                   self.get_seq_no(), 
                                   ttl, 
                                   src_ip, 
@@ -199,7 +217,7 @@ class EmulatorInProgress:
             # Construct Hello Packet
             hello_pkt = struct.pack("!cIIIIIII", 
                                     HELLO_PACKET_TYPE.encode(), 
-                                    self.get_id(), 
+                                    self.__get_id(), 
                                     self.get_seq_no(), 
                                     ttl, 
                                     src_ip,
@@ -215,7 +233,7 @@ class EmulatorInProgress:
             # Construct Acknowledgement Packet
             ack_pkt = struct.pack("!cIIIIIII", 
                                   ACKNOWLEDGE_PACKET_TYPE.encode(), 
-                                  self.get_id(), 
+                                  self.__get_id(), 
                                   ack_seq_no, 
                                   ttl, 
                                   src_ip,

@@ -1,5 +1,4 @@
 
-from emulator import Emulator
 
 class EmulatorPriorityQueue:
 
