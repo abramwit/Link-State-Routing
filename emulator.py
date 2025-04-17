@@ -55,7 +55,7 @@ PORT = 1
 
 class EmulatorInProgress:
 
-    def __init__(self, neighbors=None, cost=0, tracer=False):
+    def __init__(self, existing_emulator=False, ip='0.0.0.0', port=-1, neighbors=[], cost=0, tracer=False):
         # Parse command line args
         parser = argparse.ArgumentParser()
         parser.add_argument('-p', '--port', type=int, help='the port that the emulator listens on for incoming packets')
@@ -65,21 +65,31 @@ class EmulatorInProgress:
         # Set up logging
         logging.basicConfig(level=logging.DEBUG)
 
-        self.ip = socket.gethostbyname(socket.gethostname())
-        self.port = int(args.port)
-        self.id, self.neighbors = self.__readtopology(args.filename)
-        self.cost = 0
-        self.seq_no = 0
-        self.tracer = tracer
+        if not existing_emulator:
+            self.ip = socket.gethostbyname(socket.gethostname())
+            self.port = int(args.port)
+            self.id, self.neighbors = self.__readtopology(args.filename)
+            self.cost = 0
+            self.seq_no = 0
+            self.tracer = tracer
 
-        # Set emulator address and socket while testing - keep commented in production
-        # self.emulator_addr = ['127.0.0.1', int(args.port)]
+            # Set emulator address and socket while testing - keep commented in production
+            # self.emulator_addr = ['127.0.0.1', int(args.port)]
 
-        # Set emulator address and socket
-        # TODO: Do this as part of separate method so I can create Emulator objects from link_state_routing.py
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind((self.get_ip(), self.get_port()))
-        self.sock.setblocking(False)
+            # Set emulator address and socket
+            # TODO: Do this as part of separate method so I can create Emulator objects from link_state_routing.py
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind((self.get_ip(), self.get_port()))
+            self.sock.setblocking(False)
+        
+        else:
+            self.ip = ip
+            self.port = int(port)
+            self.id = -1
+            self.neighbors = neighbors
+            self.cost = cost
+            self.seq_no = 0
+            self.tracer = tracer
 
     
     def __readtopology(self, filename):
