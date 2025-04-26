@@ -18,6 +18,9 @@ class ForwardingTableEntry():
     def get_entry(self):
         return self.emulator, self.next_hop, self.in_spf
     
+    def get_next_hop(self):
+        return self.next_hop
+    
     def update_next_hop(self, new_next_hop):
         self.next_hop = new_next_hop
 
@@ -49,7 +52,7 @@ class ForwardingTable(ForwardingTableEntry):
 
         for entry in self.__get_forwarding_table():
             if list(entry.keys())[0] == key:
-                return entry
+                return entry[self.__get_emulator_key(emulator)]
         return False
 
     
@@ -58,46 +61,62 @@ class ForwardingTable(ForwardingTableEntry):
         entry = ForwardingTableEntry(emulator, next_hop, False)
         self.forwarding_table.append({key:entry})
 
+    
+    def get_next_hop(self, emulator):
+        entry = self.__get_entry(emulator)
+        if entry:
+            return entry.get_next_hop()
+        else:
+            raise Exception('Exception in get_next_hop function - entry not found!')
+
 
     def update_next_hop(self, emulator, new_next_hop):
         entry = self.__get_entry(emulator)
-        entry.update_next_hop(new_next_hop)
+        if entry:
+            entry.update_next_hop(new_next_hop)
+        else:
+            raise Exception('Exception in update_next_hop function - entry not found!')
 
 
-    def get_next_hop(self, starting, predecessor):
-        # Insert predecessor to destination node and returns next hop from starting emulator
-        next_hop = predecessor
+    def find_next_hop(self, starting, predecessor, destination):
+        # If starting node == predecessor node, then go to destination. The destination is the 'next-hop'.
+        if starting == predecessor:
+            return destination
+        
+        # Find forwarding table entry who's next-node equals the current next-node (starting with predecessor)
+        for entry in self.__get_forwarding_table():
+            start_node, next_node, _ = entry.values()[0].get_entry()
+            if start_node == predecessor:
+                # Return the starting_node
+                return next_node
+        
+        # If next-hop not found raise an error
+        raise Exception('Exception in is_emulator_in_spf_tree function - entry not found!')
 
-        # While next-hop is not in starting nodes neighbors
-        while next_hop not in starting.get_neighbors():
-            # Find forwarding table entry who's next-node equals the current next-node (starting with predecessor)
-            for entry in self.__get_forwarding_table():
-                start_node, _, next_node = entry.get_entry()
-                if next_hop == next_node:
-                    # Set the next-node to the starting node and repeat
-                    next_hop = start_node
-                    break
-        return next_hop
 
-
-    
     def is_emulator_in_forwarding_table(self, emulator):
-        in_table = self.get_entry
+        in_table = self.__get_entry(emulator)
         if in_table:
             return True
         return False
 
 
-    def is_emulator_in_sp_tree(self, emulator):
+    def is_emulator_in_spf_tree(self, emulator):
         # Status of whether emulator is in the shortest path tree
         entry = self.__get_entry(emulator)
-        return entry.get_in_spf()
+        if entry:
+            return entry.get_in_spf()
+        else:
+            raise Exception('Exception in is_emulator_in_spf_tree function - entry not found!')
 
 
     def add_emulator_to_sp_tree(self, emulator):
         # Add emulator to the shortest path tree
         entry = self.__get_entry(emulator)
-        entry.set_in_spf(True)
+        if entry:
+            entry.set_in_spf(True)
+        else:
+            raise Exception('Exception in add_emulator_to_sp_tree function - entry not found!')
 
 
 class LinkStateProtocol:
@@ -298,7 +317,7 @@ class LinkStateProtocol:
             emulator = priority_queue.get_min()
 
             # If the emulator is not in the forwarding tables SPF tree
-            if not forwarding_table.is_emulator_in_sp_tree(emulator):
+            if not forwarding_table.is_emulator_in_spf_tree(emulator):
 
                 # Insert the node into the forwarding table and set it's status in the SPF tree to True
                 forwarding_table.add_emulator_to_sp_tree(emulator)

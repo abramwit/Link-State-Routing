@@ -10,8 +10,6 @@ import logging
 import struct
 import datetime
 
-from link_state_routing import LinkStateProtocol
-
 #--------------------------------------------------------------------------------------------------------------------------------------------------------#
 #                                                                   ENUMERATIONS                                                                         #
 #--------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -324,9 +322,9 @@ class EmulatorInProgress:
         return packet, header, data
     
     
+if __name__ == '__main__':
+    emulator = EmulatorInProgress()
 
-emulator = EmulatorInProgress()
+    lsp = LinkStateProtocol(emulator)
 
-lsp = LinkStateProtocol(emulator)
-
-lsp.createroutes()
+    lsp.createroutes()

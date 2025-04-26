@@ -161,6 +161,7 @@ class Trace(EmulatorInProgress):
         return packet, header, data
 
 
-trace = Trace()
+if __name__ == '__main__':
+    trace = Trace()
 
-trace.routetrace()
+    trace.routetrace()
