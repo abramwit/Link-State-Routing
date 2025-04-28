@@ -7,7 +7,7 @@ class EmulatorPriorityQueue:
 
     def __heapify(self):
         # Sort the priority in descending order by the cost to get to the emulator
-        self.priority_queue.sort(key=lambda x: x.cost, reverse=True)
+        self.priority_queue.sort(key=lambda x: x.get_cost(), reverse=True)
     
     def insert(self, emulator):
         self.priority_queue.append(emulator)
@@ -20,3 +20,8 @@ class EmulatorPriorityQueue:
         # If not empty return
         else:
             return self.priority_queue.pop()
+    
+    def is_not_empty(self):
+        if self.priority_queue == []:
+            return False
+        return True

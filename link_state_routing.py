@@ -1,122 +1,138 @@
-import argparse
-import ipaddress
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+#                                                                   IMPORTS                                                                              #
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+
 import socket
 import logging
-import struct
 import datetime
 
 from emulator_priority_queue import EmulatorPriorityQueue
-from emulator import EmulatorInProgress
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+#                                                                   ENUMERATIONS                                                                         #
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+#                                                                   CLASSES / FUNCTIONS                                                                  #
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
 
 class ForwardingTableEntry():
     
-    def __init__(self, emulator, next_hop, in_spf):
-        self.emulator = emulator
-        self.next_hop = next_hop
+    def __init__(self, dest_ip, dest_port, next_ip, next_port, in_spf, cost):
+        self.dest_ip = dest_ip
+        self.dest_port = dest_port
+        self.next_ip = next_ip
+        self.next_port = next_port
         self.in_spf = in_spf
+        self.cost = cost
 
     def get_entry(self):
-        return self.emulator, self.next_hop, self.in_spf
+        return self.dest_ip, self.dest_port
+    
+    def get_ip(self):
+        return self.dest_ip
+    
+    def get_port(self):
+        return self.dest_port
     
     def get_next_hop(self):
-        return self.next_hop
+        return self.next_ip, self.next_port
     
-    def update_next_hop(self, new_next_hop):
-        self.next_hop = new_next_hop
+    def set_next_hop(self, next_ip, next_port):
+        self.next_ip, self.next_port = next_ip, next_port
+
+    def get_in_spf(self):
+        return self.in_spf
 
     def set_in_spf(self, in_spf):
         self.in_spf = in_spf
 
-    def get_in_spf(self):
-        return self.in_spf
+    def get_cost(self):
+        return self.cost
+    
+    def set_cost(self, cost):
+        self.cost = cost
 
 
 class ForwardingTable(ForwardingTableEntry):
 
     def __init__(self):
         # EMULATOR   NEXT-HOP   IN-SPF
-        self.forwarding_table = []
+        self.forwarding_table = {}
 
+    def print_forwarding_table(self, src_ip, src_port):
+        print("      Forwarding Table:      ")
+        print(' ____dest____   __next-hop__ ')
+        for entry in self.forwarding_table.values():
+            dest_ip, dest_port = entry.get_entry()
+            if not ((dest_ip == src_ip) and (dest_port == src_port)):
+                next_ip, next_port = entry.get_next_hop()
+                print("{},{} {},{}".format(dest_ip, dest_port, next_ip, next_port))
+        print()
 
-    def __get_emulator_key(self, emulator):
-        key = str(emulator.get_ip()) + ',' + str(emulator.get_port())
+    def __get_emulator_key(self, ip, port):
+        key = str(ip) + ',' + str(port)
         return key
+
+    def get_entry(self, ip, port):
+        key = self.__get_emulator_key(ip, port)
+        entry = self.forwarding_table[key]
+        return entry
     
+    def add_entry(self, ip, port, next_ip, next_port, cost=0):
+        key = self.__get_emulator_key(ip, port)
+        entry = ForwardingTableEntry(ip, port, next_ip, next_port, False, cost)
+        self.forwarding_table[key] = entry
     
-    def __get_forwarding_table(self):
-        return self.forwarding_table
-    
+    def get_next_hop(self, ip, port):
+        key = self.__get_emulator_key(ip, port)
+        entry = self.forwarding_table[key]
+        return entry.get_next_hop()
 
-    def __get_entry(self, emulator):
-        key = self.__get_emulator_key(emulator)
+    def update_next_hop(self, ip, port, next_ip, next_port):
+        key = self.__get_emulator_key(ip, port)
+        entry = self.forwarding_table[key]
+        entry.set_next_hop(next_ip, next_port)
 
-        for entry in self.__get_forwarding_table():
-            if list(entry.keys())[0] == key:
-                return entry[self.__get_emulator_key(emulator)]
-        return False
+    def find_next_hop(self, src_ip, src_port, pre_ip, pre_port, dest_ip, dest_port):
+        src_key = self.__get_emulator_key(src_ip, src_port)
+        pre_key = self.__get_emulator_key(pre_ip, pre_port)
 
-    
-    def add_entry(self, emulator, next_hop):
-        key = self.__get_emulator_key(emulator)
-        entry = ForwardingTableEntry(emulator, next_hop, False)
-        self.forwarding_table.append({key:entry})
-
-    
-    def get_next_hop(self, emulator):
-        entry = self.__get_entry(emulator)
-        if entry:
-            return entry.get_next_hop()
-        else:
-            raise Exception('Exception in get_next_hop function - entry not found!')
-
-
-    def update_next_hop(self, emulator, new_next_hop):
-        entry = self.__get_entry(emulator)
-        if entry:
-            entry.update_next_hop(new_next_hop)
-        else:
-            raise Exception('Exception in update_next_hop function - entry not found!')
-
-
-    def find_next_hop(self, starting, predecessor, destination):
-        # If starting node == predecessor node, then go to destination. The destination is the 'next-hop'.
-        if starting == predecessor:
-            return destination
+        # If source node == predecessor node, then destination is the 'next-hop'
+        if src_key == pre_key:
+            return dest_ip, dest_port
         
         # Find forwarding table entry who's next-node equals the current next-node (starting with predecessor)
-        for entry in self.__get_forwarding_table():
-            start_node, next_node, _ = entry.values()[0].get_entry()
-            if start_node == predecessor:
-                # Return the starting_node
-                return next_node
-        
-        # If next-hop not found raise an error
-        raise Exception('Exception in is_emulator_in_spf_tree function - entry not found!')
+        entry = self.forwarding_table[pre_key]
+        next_ip, next_port = entry.get_next_hop()
+        return next_ip, next_port
 
-
-    def is_emulator_in_forwarding_table(self, emulator):
-        in_table = self.__get_entry(emulator)
-        if in_table:
+    def is_emulator_in_forwarding_table(self, ip, port):
+        try:
+            _ = self.get_entry(ip, port)
             return True
-        return False
+        except Exception:
+            return False
 
-
-    def is_emulator_in_spf_tree(self, emulator):
-        # Status of whether emulator is in the shortest path tree
-        entry = self.__get_entry(emulator)
-        if entry:
+    def is_emulator_in_spf_tree(self, ip, port):
+        try:
+            entry = self.get_entry(ip, port)
             return entry.get_in_spf()
-        else:
-            raise Exception('Exception in is_emulator_in_spf_tree function - entry not found!')
+        except Exception:
+            return False
 
-
-    def add_emulator_to_sp_tree(self, emulator):
-        # Add emulator to the shortest path tree
-        entry = self.__get_entry(emulator)
-        if entry:
-            entry.set_in_spf(True)
-        else:
-            raise Exception('Exception in add_emulator_to_sp_tree function - entry not found!')
+    def add_emulator_to_sp_tree(self, ip, port):
+        entry = self.get_entry(ip, port)
+        entry.set_in_spf(True)
+    
+    def set_emulator_cost(self, ip, port, cost):
+        entry = self.get_entry(ip, port)
+        entry.set_cost(cost)
+        
+    def get_emulator_cost(self, emulator):
+        entry = self.get_entry(emulator)
+        return entry.get_cost()
 
 
 class LinkStateProtocol:
@@ -125,6 +141,11 @@ class LinkStateProtocol:
         self.emulator_obj = emulator
         self.forwarding_tbl = []
         self.cur_LSP = []  # Up-to-date Link State Packet
+        self.forwarding_tbl = None
+    
+
+    def get_forwarding_tbl(self):
+        return self.forwarding_tbl
 
 
     def createroutes(self):
@@ -290,13 +311,9 @@ class LinkStateProtocol:
                     self.emulator_obj.get_sock().sendto(new_lsp, (neighbor["ip"], neighbor["port"]))
 
         return
+    
 
     def buildforwardingtable(self):
-        confirmed = [{"dest": [self.emulator_obj.get_ip(), self.emulator_obj.get_port()], "cost": 0, "next_hop": None}]
-        tentative = []
-        in_algo = False
-
-        ### TEST
 
         # Create Forwarding Table w/ Destination, In SPF?, Cost and  Next Hop
         forwarding_table = ForwardingTable()
@@ -305,97 +322,70 @@ class LinkStateProtocol:
         priority_queue = EmulatorPriorityQueue()
 
         # Set the cost of the starting emulator to 0 in the Forwarding Table
-        forwarding_table.add_entry(self.emulator_obj, self.emulator_obj)
+        forwarding_table.add_entry(self.emulator_obj.get_ip(), self.emulator_obj.get_port(), self.emulator_obj.get_ip(), self.emulator_obj.get_port())
+        entry = forwarding_table.get_entry(self.emulator_obj.get_ip(), self.emulator_obj.get_port())
 
         # Insert the starting emulator into the priority queue and set it's cost to 0
-        priority_queue.insert(self.emulator_obj)
+        priority_queue.insert(entry)
 
         # While the priority queue is not empty
-        while priority_queue:
+        while priority_queue.is_not_empty():
 
-            # Get the emulator from the priority queue with the minimum cost
-            emulator = priority_queue.get_min()
+            # Get the entry from the priority queue with the minimum cost
+            entry = priority_queue.get_min()
 
             # If the emulator is not in the forwarding tables SPF tree
-            if not forwarding_table.is_emulator_in_spf_tree(emulator):
+            if not forwarding_table.is_emulator_in_spf_tree(entry.get_ip(), entry.get_port()):
 
                 # Insert the node into the forwarding table and set it's status in the SPF tree to True
-                forwarding_table.add_emulator_to_sp_tree(emulator)
+                forwarding_table.add_emulator_to_sp_tree(entry.get_ip(), entry.get_port())
 
                 # For all of the added emulator's neighbors
-                for neighbor in emulator.get_neighbors():
+                for neighbor in self.getnodesneighbors(entry):
+
+                    new_entry = False
 
                     # Calculate the cost to the neighbor [cost = weight(u,v) + table[v].cost]
-                    new_cost = 1 + emulator.get_cost()
+                    new_cost = 1 + entry.get_cost()
 
                     # If the forwarding table does not have a cost for the neighbor or the calculated cost is lower
-                    if not forwarding_table.is_emulator_in_forwarding_table(neighbor) or (neighbor.get_cost > new_cost):
+                    if not forwarding_table.is_emulator_in_forwarding_table(neighbor['ip'], neighbor['port']):
+                        forwarding_table.add_entry(neighbor['ip'], neighbor['port'], neighbor['ip'], neighbor['port'])
+                        new_entry = True
+                    
+                    neighbor = forwarding_table.get_entry(neighbor['ip'], neighbor['port'])
+                    
+                    if new_entry or (neighbor.get_cost() > new_cost):
 
-                        # Insert the neighbor into the forwarding table (set it's cost and 'next hop')
+                        # Set the cost of the neighbor emulator
                         neighbor.set_cost(new_cost)
-                        next_hop = forwarding_table(emulator)
 
-                        if not forwarding_table.is_emulator_in_forwarding_table(neighbor):
-                            forwarding_table.add_entry(neighbor, next_hop)
+                        # Find the next-hop on the path from the starting emulator to the neighbor emulator
+                        entry_ip, entry_port = entry.get_entry()
+                        neighbor_ip, neighbor_port = neighbor.get_entry()
+                        next_ip, next_port = forwarding_table.find_next_hop(self.emulator_obj.get_ip(), self.emulator_obj.get_port(), entry_ip, entry_port, neighbor_ip, neighbor_port)
 
-                        else:
-                            forwarding_table.update_next_hop(neighbor, next_hop)
+                        # Update the neighbor emulator's next-hop
+                        forwarding_table.update_next_hop(neighbor.get_ip(), neighbor.get_port(), next_ip, next_port)
 
                         # Insert the neighbor and it's cost into the priority queue
                         priority_queue.insert(neighbor)
 
-        ### TEST
-
-        # Consider all neighbor nodes of this emulator
-        for neighbor in self.emulator_obj.get_neighbors():
-            tentative.append({"dest": [neighbor["ip"], neighbor["port"]], "cost": 1, "next_hop": [neighbor["ip"], neighbor["port"]]})
-
-        # While all nodes have not been attached by Dijkstra consider next node
-        while len(tentative) != 0:
-            w = tentative[0]
-            confirmed.append(w)
-            tentative.remove(w)
-
-            # Update tentative list with node w's neighbors, keep the lowest cost path
-            w_neighbors = self.getnodesneighbors(w)
-
-            for neighbor in w_neighbors:
-                in_algo = False
-
-                # If neighbor already in tentative list replace if new path is lower
-                for dest in tentative:
-                    if neighbor['ip'] == dest['dest'][0] and neighbor['port'] == dest['dest'][1]:
-                        in_algo = True
-
-                        if dest['cost'] > (w['cost'] + 1):
-                            dest['cost'] = (w['cost'] + 1)
-                            dest['next_hop'] = w['dest']
-
-                # If neighbor already in confirmed then ignore
-                for dest in confirmed:
-                    if neighbor['ip'] == dest['dest'][0] and neighbor['port'] == dest['dest'][1]:
-                        in_algo = True
-
-                if not in_algo:
-                    tentative.append({"dest": [neighbor["ip"], neighbor["port"]], "cost": (w['cost'] + 1), "next_hop": [w["dest"][0], w["dest"][1]]})
-
-        self.forwarding_tbl = confirmed
-
         # Print Forwarding Table
         # logging.info(str(self.forwarding_tbl))
-        print("Forwarding Table:")
-        for entry in self.forwarding_tbl:
-            if not (entry["dest"][0].__eq__(self.emulator_obj.get_ip()) and entry["dest"][1] == self.emulator_obj.get_port()):
-                print(entry["dest"][0] + "," + str(entry["dest"][1]) + " " +
-                      entry["next_hop"][0] + "," + str(entry["next_hop"][1]))
-        print()
+        forwarding_table.print_forwarding_table(self.emulator_obj.get_ip(), self.emulator_obj.get_port())
+
 
     def getnodesneighbors(self, node):
+        # If node equals starting emulator then return neighbors
+        if (node.get_ip() == self.emulator_obj.get_ip()) and (node.get_port() == self.emulator_obj.get_port()):
+            return self.emulator_obj.get_neighbors()
+        
         # Returns a given nodes neighbors
         for lsp in self.cur_LSP:
             lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(lsp)
 
-            if node['dest'][0] == lsp_header[4][0] and node['dest'][1] == lsp_header[4][1]:
+            if node.get_ip() == lsp_header[4][0] and node.get_port() == lsp_header[4][1]:
                 return neighbors
 
         return []
