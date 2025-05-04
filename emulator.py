@@ -8,6 +8,7 @@ import socket
 import logging
 import struct
 import datetime
+import time
 
 from link_state_routing import LinkStateProtocol
 
@@ -69,6 +70,7 @@ class EmulatorInProgress:
         if not existing_emulator:
             self.ip = socket.gethostbyname(socket.gethostname())
             self.port = int(args.port)
+            time.sleep(2)
             self.id, self.neighbors = self.__readtopology(args.filename)
             self.cost = 0
             self.seq_no = 0
@@ -270,7 +272,7 @@ class EmulatorInProgress:
                                     TRACE_PACKET_TYPE.encode(),
                                     DEFAULT_ID,
                                     DEFAULT_SEQ_NR,
-                                    ttl,
+                                    0,
                                     trace_ip,
                                     trace_port,
                                     dest_ip, 
@@ -313,27 +315,45 @@ class EmulatorInProgress:
         elif p_type == 'T':
 
             if not self.tracer:
-                self.forwardtracepacket()
+                ### TEST
+                self.forwardtracepacket(src_addr, TTL, dest_addr)
+
+                ### TEST
+
+                # If TTL equals 0 then modify packet, replace src address with emulators and send back to trace
+                # trace_pkt = self.assemblepacket('T', TTL, src_addr, 0, src_addr)
+                # self.sock.sendto(trace_pkt, (src_addr[0], src_addr[1]))
+ 
+                # # If TTL is not 0, decrement TTL and send packet on next hop to destination
+                # for dest in self.forwarding_tbl:
+                #     if dest_addr[0].__eq__(dest["dest"][0]) and dest_addr[1] == dest["dest"][1]:
+                #         TTL -= 1
+                #         trace_pkt = self.assemblepacket('T', TTL, dest_addr, 0, src_addr)
+                #         self.sock.sendto(trace_pkt, (dest['next_hop'][0], dest['next_hop'][1]))
 
         return packet, header, data
 
 
-    def forwardtracepacket(self, packet, dest_ip, dest_port):
+    def forwardtracepacket(self, trace_addr, TTL, dest_addr):
 
         forwarding_tbl = self.lsp.get_forwarding_tbl()
 
-        # If TTL equals 0 then modify packet, replace src address with emulators and send back to trace
-        if TTL == 0:
-            trace_pkt = self.assemblepacket('T', TTL, src_addr, 0, self.emulator_addr)
-            self.sock.sendto(trace_pkt, (src_addr[0], src_addr[1]))
+        # Send packet back to trace addr acknowleding packet was recieved and is on it's way to the next hop
+        trace_pkt = self.assemblepacket('A', TTL, trace_addr, 0)
+        self.sock.sendto(trace_pkt, (trace_addr[0], trace_addr[1]))
 
-        # If TTL is not 0, decrement TTL and send packet on next hop to destination
-        else:
-            for dest in forwarding_tbl:
-                if dest_addr[0].__eq__(dest["dest"][0]) and dest_addr[1] == dest["dest"][1]:
-                    TTL -= 1
-                    trace_pkt = self.assemblepacket('T', TTL, dest_addr, 0, src_addr)
-                    self.sock.sendto(trace_pkt, (dest['next_hop'][0], dest['next_hop'][1]))
+        # If trace packet has reached destination stop forwarding trace packet
+        if dest_addr[0].__eq__(self.get_ip()) and dest_addr[1] == self.get_port():
+            return
+
+        # Else, look in forwarding table for next hop on way to destination
+        for entry in forwarding_tbl.get_values():
+
+            if dest_addr[0].__eq__(entry.get_ip()) and dest_addr[1] == entry.get_port():
+                TTL -= 1
+                trace_pkt = self.assemblepacket('T', TTL, dest_addr, 0, trace_addr)
+                next_ip, next_port = entry.get_next_hop()
+                self.sock.sendto(trace_pkt, (next_ip, next_port))
 
 
 if __name__ == '__main__':

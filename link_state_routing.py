@@ -61,6 +61,10 @@ class ForwardingTable(ForwardingTableEntry):
         # EMULATOR   NEXT-HOP   IN-SPF
         self.forwarding_table = {}
 
+    
+    def get_values(self):
+        return self.forwarding_table.values()
+
     def print_forwarding_table(self, src_ip, src_port):
         print("      Forwarding Table:      ")
         print(' ____dest____   __next-hop__ ')
@@ -318,6 +322,8 @@ class LinkStateProtocol:
         # Create Forwarding Table w/ Destination, In SPF?, Cost and  Next Hop
         forwarding_table = ForwardingTable()
 
+        import pdb; pdb.set_trace()
+
         # Create an Empty Priority Queue
         priority_queue = EmulatorPriorityQueue()
 
@@ -374,6 +380,7 @@ class LinkStateProtocol:
         # Print Forwarding Table
         # logging.info(str(self.forwarding_tbl))
         forwarding_table.print_forwarding_table(self.emulator_obj.get_ip(), self.emulator_obj.get_port())
+        self.forwarding_tbl = forwarding_table
 
 
     def getnodesneighbors(self, node):
