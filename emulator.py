@@ -191,8 +191,8 @@ class EmulatorInProgress:
         # - TTL         (Packet's time to live - prevent immortal packets)
         # - src_address_ip (source addresses IP/Host)
         # - src_address_port (source addresses port)
-        # - src_address_ip (source addresses IP/Host)
-        # - src_address_port (source addresses port)
+        # - dest_address_ip (dest. addresses IP/Host)
+        # - dest_address_port (dest. addresses port)
 
         # TODO: what to set TTL to? Set to 10 for now
 
@@ -315,21 +315,7 @@ class EmulatorInProgress:
         elif p_type == 'T':
 
             if not self.tracer:
-                ### TEST
                 self.forwardtracepacket(src_addr, TTL, dest_addr)
-
-                ### TEST
-
-                # If TTL equals 0 then modify packet, replace src address with emulators and send back to trace
-                # trace_pkt = self.assemblepacket('T', TTL, src_addr, 0, src_addr)
-                # self.sock.sendto(trace_pkt, (src_addr[0], src_addr[1]))
- 
-                # # If TTL is not 0, decrement TTL and send packet on next hop to destination
-                # for dest in self.forwarding_tbl:
-                #     if dest_addr[0].__eq__(dest["dest"][0]) and dest_addr[1] == dest["dest"][1]:
-                #         TTL -= 1
-                #         trace_pkt = self.assemblepacket('T', TTL, dest_addr, 0, src_addr)
-                #         self.sock.sendto(trace_pkt, (dest['next_hop'][0], dest['next_hop'][1]))
 
         return packet, header, data
 

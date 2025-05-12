@@ -5,6 +5,8 @@
 import socket
 import logging
 import datetime
+import struct
+import ipaddress
 
 from emulator_priority_queue import EmulatorPriorityQueue
 
@@ -144,7 +146,7 @@ class LinkStateProtocol:
     def __init__(self, emulator):
         self.emulator_obj = emulator
         self.forwarding_tbl = []
-        self.cur_LSP = []  # Up-to-date Link State Packet
+        self.cur_LSP = {}  # Up-to-date Link State Packet
         self.forwarding_tbl = None
     
 
@@ -161,7 +163,7 @@ class LinkStateProtocol:
 
         # Send hello messages and LSP to neighbors and continue to send after each send_timeout
         for node in self.emulator_obj.get_neighbors():
-            self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('H', 1, [node['ip'], node['port']], -1), (node['ip'], node['port']))
+            self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('H', 10, [node['ip'], node['port']], -1), (node['ip'], node['port']))
             self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1), (node['ip'], node['port']))
             # logging.debug("Sending hello packet and LSP to [ip:port] -- " + node['ip'] + " : " + str(node['port']))
         send_hello = datetime.datetime.now()
@@ -179,6 +181,10 @@ class LinkStateProtocol:
                 # Receive packets from other nodes
                 packet, addr = self.emulator_obj.get_sock().recvfrom(1024)
                 packet, header, data = self.emulator_obj.deassemblepacket(packet)
+
+                ### TEST
+                # print(str(header[4][0]) + ',' + str(header[4][1]) + ' -: ' + str(data))
+                ### TEST
 
                 # Hello packet received from neighbor node
                 if header[0] == 'H':
@@ -206,9 +212,16 @@ class LinkStateProtocol:
                             #               node['ip'] + " : " + str(node['port']))
                             self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1),
                                              (node['ip'], node['port']))
+                            ### TEST
+                            # self.cur_LSP = {}
+                            ### TEST
 
                 # LSP packet received
                 elif header[0] == 'L':
+                    ### TEST
+                    print(str(header[4][0]) + ',' + str(header[4][1]) + ' -: ' + str(data))
+                    ### TEST
+
                     # logging.debug("Received LSP packet from [ip:port] -- " + header[4][0] + " : " + str(header[4][1]))
                     self.forwardpacket(packet)
                     topography_change = True
@@ -229,7 +242,7 @@ class LinkStateProtocol:
             if datetime.datetime.now() - send_hello > send_timeout:
                 for node in self.emulator_obj.get_neighbors():
                     # logging.debug("Sending hello packet to [ip:port] -- " + node['ip'] + " : " + str(node['port']))
-                    self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('H', 1, [node['ip'], node['port']], -1), (node['ip'],
+                    self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('H', 10, [node['ip'], node['port']], -1), (node['ip'],
                                                                                                    node['port']))
 
                 send_hello = datetime.datetime.now()
@@ -252,17 +265,26 @@ class LinkStateProtocol:
                 self.emulator_obj.remove_neighbor(drop_node)
 
                 # When dropping neighbor node also remove LSP entry
-                for lsp in self.cur_LSP:
-                    lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(lsp)
+                ### TEST
+                key = str(drop_node['ip']) + ',' + str(drop_node['port'])
+                if key in self.cur_LSP.keys():
+                    self.cur_LSP.pop(key)
+                ### TEST
 
-                    if lsp_header[4][0] == drop_node['ip'] and lsp_header[4][1] == drop_node['port']:
-                        self.cur_LSP.remove(lsp)
+                # for lsp in self.cur_LSP:
+                #     lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(lsp)
+
+                #     if lsp_header[4][0] == drop_node['ip'] and lsp_header[4][1] == drop_node['port']:
+                #         self.cur_LSP.remove(lsp)
 
             if len(neighbor_timeout) >= 1:
                 for node in self.emulator_obj.get_neighbors():
                     # logging.debug("Sending LSP packet to [ip:port] -- " + node['ip'] + " : " + str(node['port']))
                     self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1),
                                      (node['ip'], node['port']))
+                    ### TEST
+                    # self.cur_LSP = {}
+                    ### TEST
 
             # If there is a change in topography rebuild forwarding table
             if topography_change:
@@ -272,47 +294,112 @@ class LinkStateProtocol:
             if (build_ft_wait != -1) and datetime.datetime.now() - build_ft_wait > build_ft_timeout:
                 build_ft_wait = -1
                 self.buildforwardingtable()
+
+    def decrement_ttl(self, packet):
+        packet, header, data = self.emulator_obj.deassemblepacket(packet)
+
+        type = header[0]
+        id = int(header[1])
+        seq_no = int(header[2])
+        ttl = int(header[3] - 1)
+        src_ip = int(ipaddress.IPv4Address(header[4][0]))
+        src_port = int(header[4][1])
+        dest_ip = int(ipaddress.IPv4Address(header[5][0]))
+        dest_port = int(header[5][1])
+
+        new_pkt = struct.pack("!cIIIIIII", 
+                             type.encode(), 
+                             id, 
+                             seq_no, 
+                             ttl, 
+                             src_ip, 
+                             src_port,
+                             dest_ip, 
+                             dest_port)
+        
+        new_data = packet[29:]
+        new_pkt += new_data
+
+        return new_pkt
+        
     
     def forwardpacket(self, packet):
         no_lsp_for_id = True
         new_lsp, new_header, new_data = self.emulator_obj.deassemblepacket(packet)
 
-        # If node does have an LSP from ID replace if sequence number greater than currently stored LSP
-        for lsp in self.cur_LSP:
-            cur_lsp, cur_header, cur_data = self.emulator_obj.deassemblepacket(lsp)
+        ### TEST
 
-            if cur_header[1] == new_header[1]:
-                no_lsp_for_id = False
+        # neighbors = ''
+        # for i in new_data:
+        #     neighbors += str(i) + ' '
 
-                if new_header[2] > cur_header[2]:
-                    # logging.debug("Received LSP with greater sequence number from node " + str(cur_header[1]) +
-                    #               " at address " + cur_header[4][0] + " : " + str(cur_header[4][1]))
-                    # logging.info(new_data)
-                    self.cur_LSP.remove(cur_lsp)
-                    self.cur_LSP.append(new_lsp)
+        # print(str(new_header[4][0]) + ',' + str(new_header[4][1]) + ' -: ' + str(new_data))
 
-                    # Forward Up-to-date LSP to all neighbors except the node LSP was received from
-                    for neighbor in self.emulator_obj.get_neighbors():
-                        if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
-                            # logging.debug("Forwarding updated LSP to node at " + neighbor['ip'] + " : " +
-                            #               str(neighbor['port']))
-                            self.emulator_obj.get_sock().sendto(new_lsp, (neighbor["ip"], neighbor["port"]))
+        # There is a problem here w/ how I am adding to cur_LSP ... I am not setting nodes LSP packet that are 2+ links away from the source
 
-                    return
+        # Maybe it would be better if I stored cur_LSP packets in the format { '<src-ip>,<src-port> : cur_lsp } so that I can easily store an LSP packet for each neighbor node...
+        # The one thing I am having trouble figuring out w/ this new design is how I'd remove the LSP packet for nodes that are down
+        # Maybe I can decrement the TTL (when LSP originally added/updated set TTL to 10?) of each LSP packet by 1 every time I add/update an LSP packet and in the case a cur_LSP packet's TTL hits 0 I would remove it
 
-        # If node does not have an LSP for given sender ID then store
-        if no_lsp_for_id:
-            # logging.debug("Received new LSP from node " + str(new_header[1]) + " at address " +
-            #               new_header[4][0] + " : " + str(new_header[4][1]))
-            # logging.info(new_data)
-            self.cur_LSP.append(new_lsp)
+        lsp_updated = False
+        key = str(new_header[4][0]) + ',' + str(new_header[4][1])
 
-            # Forward new LSP to all neighbors except the node LSP was received from
-            for neighbor in self.emulator_obj.get_neighbors():
-                if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
-                    # logging.debug("Forwarding new LSP to node at " + neighbor['ip'] + " : " +
-                    #               str(neighbor['port']))
-                    self.emulator_obj.get_sock().sendto(new_lsp, (neighbor["ip"], neighbor["port"]))
+        # If there is already a node from the new LSP src node then check if it's sequence number is greater than the last recieved LSP (from the new LSP src node)
+        if key in self.cur_LSP.keys():
+            cur_lsp, cur_header, cur_data = self.emulator_obj.deassemblepacket(self.cur_LSP[key])
+            if new_header[2] > cur_header[2]:
+                self.cur_LSP[key] = new_lsp
+        
+        # If no LSP exists from the new LSP src node then add it to the list of current LSPs
+        else:
+            self.cur_LSP[key] = new_lsp
+
+            # If no LSP existed then new node online, resend out own node's LSP
+            for node in self.emulator_obj.get_neighbors():
+                self.emulator_obj.get_sock().sendto(self.emulator_obj.assemblepacket('L', 10, [node['ip'], node['port']], -1), (node['ip'], node['port']))
+
+        # Decrement TTL of LSP by 1. If TTL has reached 0 then do not forward packet.
+        new_ttl = new_header[3] - 1
+        if new_ttl == 0:
+            return
+        
+        new_lsp_pkt = self.decrement_ttl(new_lsp)
+
+        # Forward new LSP to all neighbors except the node LSP was received from
+        for neighbor in self.emulator_obj.get_neighbors():
+            if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
+                self.emulator_obj.get_sock().sendto(new_lsp_pkt, (neighbor["ip"], neighbor["port"]))
+
+        # for key in self.cur_LSP.keys():
+        #     print(str(key) + ':::' + str(self.cur_LSP[key]))
+        ### TEST
+
+        # # If node does have an LSP from ID replace if sequence number greater than currently stored LSP
+        # for lsp in self.cur_LSP:
+        #     cur_lsp, cur_header, cur_data = self.emulator_obj.deassemblepacket(lsp)
+
+        #     if cur_header[1] == new_header[1]:
+        #         no_lsp_for_id = False
+
+        #         if new_header[2] > cur_header[2]:
+        #             self.cur_LSP.remove(cur_lsp)
+        #             self.cur_LSP.append(new_lsp)
+
+        #             # Forward Up-to-date LSP to all neighbors except the node LSP was received from
+        #             for neighbor in self.emulator_obj.get_neighbors():
+        #                 if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
+        #                     self.emulator_obj.get_sock().sendto(new_lsp, (neighbor["ip"], neighbor["port"]))
+
+        #             return
+
+        # # If node does not have an LSP for given sender ID then store
+        # if no_lsp_for_id:
+        #     self.cur_LSP.append(new_lsp)
+
+        #     # Forward new LSP to all neighbors except the node LSP was received from
+        #     for neighbor in self.emulator_obj.get_neighbors():
+        #         if not (neighbor["ip"].__eq__(new_header[4][0]) and neighbor["port"] == new_header[4][1]):
+        #             self.emulator_obj.get_sock().sendto(new_lsp, (neighbor["ip"], neighbor["port"]))
 
         return
     
@@ -321,8 +408,6 @@ class LinkStateProtocol:
 
         # Create Forwarding Table w/ Destination, In SPF?, Cost and  Next Hop
         forwarding_table = ForwardingTable()
-
-        import pdb; pdb.set_trace()
 
         # Create an Empty Priority Queue
         priority_queue = EmulatorPriorityQueue()
@@ -384,17 +469,28 @@ class LinkStateProtocol:
 
 
     def getnodesneighbors(self, node):
+
         # If node equals starting emulator then return neighbors
         if (node.get_ip() == self.emulator_obj.get_ip()) and (node.get_port() == self.emulator_obj.get_port()):
             return self.emulator_obj.get_neighbors()
         
         # Returns a given nodes neighbors
-        for lsp in self.cur_LSP:
-            lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(lsp)
+        ### TEST
+        neighbors = []
+        key = str(node.get_ip()) + ',' + str(node.get_port())
 
-            if node.get_ip() == lsp_header[4][0] and node.get_port() == lsp_header[4][1]:
-                return neighbors
+        if key in self.cur_LSP.keys():
+            lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(self.cur_LSP[key])
+        ### TEST
+        
+        # for lsp in self.cur_LSP:
+        #     lsp, lsp_header, neighbors = self.emulator_obj.deassemblepacket(lsp)
 
-        return []
+        #     if node.get_ip() == lsp_header[4][0] and node.get_port() == lsp_header[4][1]:
+        #         return neighbors
+
+        # print(key + ' ::: ' + str(neighbors))
+
+        return neighbors
     
 
