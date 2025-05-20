@@ -79,7 +79,7 @@ class Trace(EmulatorInProgress):
 
         # Output debug table headers
         if self.debug == DEBUG_MODE:
-            print("Hop # IP Port")
+            print("_Hop-#_  _IP,Port_")
 
         # Send first trace packet from routetrace address to the source address
         self.sock.sendto(self.assemblepacket(TRACE_PACKET, 
@@ -93,7 +93,7 @@ class Trace(EmulatorInProgress):
             packet, header, _ = self.deassemblepacket(packet)
 
             if self.debug == DEBUG_MODE:
-                print(str(hop) + " " + header[4][HOST] + "," + str(header[4][PORT]))
+                print("   {}     {},{}".format(hop, header[4][HOST], str(header[4][PORT])))
                 hop += 1
 
             # Trace packet reached destination
