@@ -7,7 +7,6 @@ Implemented the "reliable flooding" algorithm where each node communicates only 
 
 The topology.txt file plans the topology. Each node will read only their line of the topology.txt file to learn it's immediate neighbors. Each node will then send "Hello" and "Link State" messages to 
 
-
 Designed nodes in the LSR protocol to reconfigure paths and stabilize in a fixed time period when the  topology changes due to nodes being created or going down.
 
 ## Description
