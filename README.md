@@ -1,5 +1,3 @@
-![LSP](https://github.com/user-attachments/assets/fd24106b-ecf1-45ed-8e25-c5c53e9cbffc)
-
 
 # Link State Routing
 
