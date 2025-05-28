@@ -1,4 +1,6 @@
 
+![lsp_demo](https://github.com/user-attachments/assets/267fe11b-b04b-42c0-b032-8f08c7cd2bff)
+
 # Link State Routing
 
 Implemented link-state routing (LSR) protocol to determine the shortest path between a fixed, known set of nodes.
