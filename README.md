@@ -89,7 +89,7 @@ _Hop-#_  _IP,Port_
 
 ## Future Improvements
 * Support for dynamic link failures and updates
-* Allow router link “costs” to be set
+* Allow router link “costs” to be set --> Currently we set all router link costs to 1
 
 ## Help
 Use the -h flag for more information on the arguments for the emulator.py and tracer.py files. 
