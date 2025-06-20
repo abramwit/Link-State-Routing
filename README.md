@@ -6,72 +6,7 @@ The Python-based repository allows the operator to define a custom network topol
 
 Link-State Protocol is a type of dynamic routing protocol used in computer networks to determine the best paths for data packets to travel. Unlike distance-vector protocols that share their entire routing tables with directly connected neighbors, link-state protocols work by having each router acquire a complete understanding of the network's topology.
 
-## ✨Features
-* Define a custom network topology using configuration files
-* Simulate Link State Protocol behavior
-* Run multiple emulators to act as routers/nodes
-* Dynamically calculate shortest paths using Dijkstra’s algorithm
-* Trace packet route taken between any two emulators with a tracer script
-
-## 📁 Project Structure
-
-link_state_emulator/
-├── emulators/
-│   ├── emulator.py         # Core emulator logic for each node
-├── topology/
-│   ├── topology_config.json # Defines the network topology
-├── tracer/
-│   ├── trace.py            # Script to trace hops between nodes
-├── utils/
-│   ├── graph_utils.py      # Graph handling and shortest path logic
-├── main.py                 # Entrypoint to start the emulation
-├── README.md
-
-
-## 🚀 Getting Started
-
-Requirements
-	•	Python 3.8+
-	•	networkx for graph operations
-	•	matplotlib (optional) for visualizing the topology
-
-### Install dependencies:
-
-pip install -r requirements.txt
-
-Define Your Topology
-
-Create a topology_config.json file:
-
-{
-  "nodes": ["A", "B", "C", "D"],
-  "links": [
-    {"from": "A", "to": "B", "cost": 1},
-    {"from": "B", "to": "C", "cost": 2},
-    {"from": "C", "to": "D", "cost": 1},
-    {"from": "A", "to": "D", "cost": 5}
-  ]
-}
-
-### Run the Emulation
-
-python main.py --topology topology/topology_config.json
-
-Each emulator will simulate a router that exchanges link state information and builds its own routing table.
-
-### Trace a Path
-
-To trace the hop-by-hop path from one emulator to another:
-
-python tracer/trace.py --src A --dst D
-
-Sample output:
-
-Tracing route from A to D:
-A -> B -> C -> D
-Total cost: 4
-
-## 🧠 Here is how the Link-State Protocol works:
+## How does Link-State-Routing work?
 1. Neighbor Discovery: When a router starts, it first discovers its directly connected neighbors by sending out "hello" packets.
 2. Link-State Advertisements (LSAs): Each router then creates a special packet called a Link-State Packet. A Link-State Packet contains information about:
     - The router's own identity.
@@ -82,6 +17,49 @@ Total cost: 4
 4. Link-State Database: Each router collects all the received Link-State Packets and compiles them into a Link-State Database. This database provides a comprehensive "map" or graph of the entire network topology, showing all routers and their interconnections.
 5. Shortest Path Calculation: With the complete network map in its Link-State Database, each router independently uses the Dijkstra shortest-path algorithm to calculate the best, loop-free path to every other destination in the network. The router itself acts as the root of this calculated "shortest path tree."
 6. Routing Table Construction: Based on these calculated shortest paths, each router builds its own routing table, which lists the best next hop for every possible destination.
+
+## Features
+* Define a custom network topology using configuration files
+* Simulate Link State Protocol behavior
+* Run multiple emulators to act as routers/nodes
+* Dynamically calculate shortest paths using Dijkstra’s algorithm
+* Trace packet route taken between any two emulators with a tracer script
+
+## Getting Started
+Requirements
+* Python 3
+
+### Download the Link-State-Routing Project
+
+
+### Define Network Topology
+Use the default network topology defined in topology.txt or define your own:
+
+topology.txt is interpreted in the following way (where all source and neighbor emulators should be defined in their own line):
+
+<source-ip>,<source-port> <neighbor_a-ip>,<neighbor_a-port> <neighbor_b-ip>,<neighbor_b-port>
+
+### Run the Emulators
+To invoke all emulators and have them perform the Link-State Protocol run the following command:
+
+python3 emulator.py -p <port> -f <topology-filename>
+
+Note that each emulator must be set-up in it's own instance of the terminal. This can be performed by re-running the command above in separate terminal tabs.
+
+### Trace the Route taken between running Emulators
+tracer.py is an application similar to the standard traceroute tool which will trace the hops along a shortest path between the source and destination emulators.
+
+To trace the hop-by-hop path from the source to destination emulator run the following command once all emulators are set-up and have output their forwarding table:
+
+python3 tracer.py -p <tracer-port> -sh <source-emulator-ip> -sp <source-emulator-port> -dh <destination-emulator-ip> -dp <destination-emulator-port> -d 1
+
+Sample output:
+
+_Hop-#_  _IP,Port_
+   1     127.0.0.1,2051
+   2     127.0.0.1,2052
+   3     127.0.0.1,2054
+   4     127.0.0.1,2055
 
 ## Here are the key characteristics and Advantages of Link-State Protocols:
 1.  Complete Network Picture: Routers have a full understanding of the network topology, leading to more intelligent routing decisions.
@@ -94,66 +72,6 @@ Total cost: 4
 * Support for dynamic link failures and updates
 * Allow router link “costs” to be set
 
-
-# Link State Routing
-
-Implemented link-state routing (LSR) protocol to determine the shortest path between a fixed, known set of nodes.
-
-Implemented the "reliable flooding" algorithm where each node communicates only with it's neighbors to learn the topology.
-
-The topology.txt file plans the topology. Each node will read only their line of the topology.txt file to learn it's immediate neighbors. Each node will then send "Hello" and "Link State" messages to 
-
-Designed nodes in the LSR protocol to reconfigure paths and stabilize in a fixed time period when the  topology changes due to nodes being created or going down.
-
-## Description
-
-An in-depth paragraph about your project and overview of use.
-
-## Getting Started
-
-### Dependencies
-
-* Describe any prerequisites, libraries, OS version, etc., needed before installing program.
-* ex. Windows 10
-
-### Installing
-
-* How/where to download your program
-* Any modifications needed to be made to files/folders
-```
-code blocks for commands
-```
-
-### Executing program
-
-* How to run the program
-* Step-by-step bullets
-```
-code blocks for commands
-```
-
 ## Help
+Use the -h flag for more information on the arguments for the emulator.py and tracer.py files. 
 
-Any advise for common problems or issues.
-```
-command to run if program contains helper info
-```
-
-## Authors
-
-Contributors names and contact info
-
-ex. Dominique Pizzie  
-ex. [@DomPizzie](https://twitter.com/dompizzie)
-
-## Version History
-
-* 0.2
-    * Various bug fixes and optimizations
-    * See [commit change]() or See [release history]()
-* 0.1
-    * Initial Release
-
-## License
-
-This project is licensed under the [NAME HERE] License - see the LICENSE.md file for details
