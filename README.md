@@ -6,8 +6,10 @@ Link-State Protocol is a type of dynamic routing protocol used in computer netwo
 
 ## Project Demo
 
+### Live Demo
 ![lsp_demo](https://github.com/user-attachments/assets/267fe11b-b04b-42c0-b032-8f08c7cd2bff)
 
+### Demo Explanation
 <img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 1.png" width="480" height="270">
 <img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 2.png" width="480" height="270">
 <img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 3.png" width="480" height="270">
