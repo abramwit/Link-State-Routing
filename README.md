@@ -10,9 +10,9 @@ Link-State Protocol is a type of dynamic routing protocol used in computer netwo
 ![lsp_demo](https://github.com/user-attachments/assets/267fe11b-b04b-42c0-b032-8f08c7cd2bff)
 
 ### Demo Explanation
-<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 1.png" width="480" height="270">
-<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 2.png" width="480" height="270">
-<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 3.png" width="480" height="270">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 1.png" width="640" height="360">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 2.png" width="640" height="360">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 3.png" width="640" height="360">
 
 ## How does Link-State-Routing work?
 1. Neighbor Discovery: When a router starts, it first discovers its directly connected neighbors by sending out "hello" packets.
