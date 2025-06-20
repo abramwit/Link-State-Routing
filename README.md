@@ -61,7 +61,7 @@ python3 tracer.py -p <tracer-port> -sh <source-emulator-ip> -sp <source-emulator
 
 Sample output:
 
-_Hop-#_  _IP,Port_
+_Hop-#\_  \_IP,Port_
    1     127.0.0.1,2051
    2     127.0.0.1,2052
    3     127.0.0.1,2054
