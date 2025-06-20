@@ -29,8 +29,11 @@ Link-State Protocol is a type of dynamic routing protocol used in computer netwo
 Requirements
 * Python 3
 
-### Download the Link-State-Routing Project
-
+### Clone the Link-State-Routing Repository
+Clone this GitHub project repository. One way to do this is listed below:
+```
+git clone https://github.com/abramwit/Link-State-Routing.git
+```
 
 ### Define Network Topology
 Use the default network topology defined in topology.txt or define your own:
