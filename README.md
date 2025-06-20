@@ -37,16 +37,16 @@ Use the default network topology defined in topology.txt or define your own:
 
 topology.txt is interpreted in the following way (where all source and neighbor emulators should be defined in their own line):
 
-'''
+```
 <source-ip>,<source-port> <neighbor_a-ip>,<neighbor_a-port> <neighbor_b-ip>,<neighbor_b-port>
-'''
+```
 
 ### Run the Emulators
 To invoke all emulators and have them perform the Link-State Protocol run the following command:
 
-'''
+```
 python3 emulator.py -p <port> -f <topology-filename>
-'''
+```
 
 Note that each emulator must be set-up in it's own instance of the terminal. This can be performed by re-running the command above in separate terminal tabs.
 
@@ -55,9 +55,9 @@ tracer.py is an application similar to the standard traceroute tool which will t
 
 To trace the hop-by-hop path from the source to destination emulator run the following command once all emulators are set-up and have output their forwarding table:
 
-'''
+```
 python3 tracer.py -p <tracer-port> -sh <source-emulator-ip> -sp <source-emulator-port> -dh <destination-emulator-ip> -dp <destination-emulator-port> -d 1
-'''
+```
 
 Sample output:
 
