@@ -1,7 +1,9 @@
 
 ![lsp_demo](https://github.com/user-attachments/assets/267fe11b-b04b-42c0-b032-8f08c7cd2bff)
 
-<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 1.png" width="150" height="50"> <img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 2.png" width="150" height="50"> <img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 3.png" width="150" height="50">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 1.png" width="320" height="180">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 2.png" width="320" height="180">
+<img src="demo/Link State Routing GitHub Portfolio Project Demo Slide 3.png" width="320" height="180">
 
 # Link State Protocol (LSP) Network Emulator. 
 The Python-based repository allows the operator to define a custom network topology, simulate link-state routing, and trace the path taken between emulated network nodes.
