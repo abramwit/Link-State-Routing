@@ -1,6 +1,6 @@
 
 # Link State Protocol (LSP) Network Emulator. 
-The Python-based repository allows the operator to define a custom network topology, simulate link-state routing, and trace the path taken between emulated network nodes.
+This Python-based repository allows the operator to define a custom network topology, simulate link-state routing, and trace the path taken between emulated network nodes.
 
 Link-State Protocol is a type of dynamic routing protocol used in computer networks to determine the best paths for data packets to travel. Unlike distance-vector protocols that share their entire routing tables with directly connected neighbors, link-state protocols work by having each router acquire a complete understanding of the network's topology.
 
